@@ -1,0 +1,15 @@
+{
+  "name": "yunzai-yt-twitter-parse-plugin",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "youtubei.js": "^10.5.0",
+    "ytdl-core": "^4.11.5"
+  },
+  "type": "module"
+}
