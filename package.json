@@ -7,7 +7,12 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^4.15.1",
     "axios": "^1.7.7",
+    "https-proxy-agent": "^7.0.5",
+    "node-fetch": "^3.3.2",
+    "proxy-agent": "^6.4.0",
+    "undici": "^6.21.0",
     "youtubei.js": "^10.5.0",
     "ytdl-core": "^4.11.5"
   },
