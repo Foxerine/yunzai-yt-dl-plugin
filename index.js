@@ -35,7 +35,7 @@ export class YouTubeVideoDownload extends plugin {
 
         this.config = {
             path: './plugins/yunzai-yt-dl-plugin/config.json',
-            fetch_timeout: 300,  // 秒
+            timeout: 300,  // 秒
             proxy: null,
             wsl: ''
         };
@@ -57,7 +57,7 @@ export class YouTubeVideoDownload extends plugin {
                 this._set_proxy(config.proxy);
             }
             this.config.wsl = config.wsl ?? '';
-            this.config.fetch_timeout = config.fetch_timeout ?? 300;
+            this.config.timeout = config.fetch_timeout ?? 300;
         } catch (error) {
             logger.error('YT视频下载: 读取配置失败:', error);
         }
@@ -114,7 +114,7 @@ export class YouTubeVideoDownload extends plugin {
             this.config.proxy = proxy_url;
             this.proxy_dispatcher = new ProxyAgent({
                 uri: proxy_url,
-                timeout: this.config.fetch_timeout * 1000
+                timeout: this.config.timeout * 1000
             });
 
             return true;
@@ -132,7 +132,7 @@ export class YouTubeVideoDownload extends plugin {
                 await this.save_config({ proxy: proxy_url });
                 e.reply(proxy_url ? `代理已设置为: ${proxy_url}` : '已清除代理设置');
             } else {
-                e.reply('设置代理失败，请检查格式');
+                e.reply('设置代理失败，请检查格式。\n格式：http://IP:端口');
             }
         } catch (error) {
             e.reply(`设置代理失败: ${error.message}`);
@@ -180,7 +180,7 @@ export class YouTubeVideoDownload extends plugin {
     }
 
     async parse_youtube(e) {
-        if (e.user_id === e.bot.bot_id) return;
+        if (e.user_id === e.self_id) return;
 
         try {
             e.reply('正在解析YouTube视频，请稍等');
@@ -205,23 +205,51 @@ export class YouTubeVideoDownload extends plugin {
                 `订阅数: ${ytdl_info.videoDetails.author.subscriber_count || '未知'}`
             );
 
-            const video_path = `./temp/ytdl/${video_id}.mp4'`;
+            const video_path = `./temp/ytdl/${video_id}.mp4`;
 
             try {
+                // 确保下载目录存在
                 await fs.promises.mkdir('./temp/ytdl', { recursive: true });
+
+                // 检查视频文件是否存在
+                const fileExists = await fs.promises.access(video_path)
+                    .then(() => true)
+                    .catch(() => false);
+
+                if (!fileExists) {
+                    logger.info(`视频 ${video_id} 不存在，开始下载...`);
+                    await this.downloadVideo(yt, video_id, video_path);
+                } else {
+                    logger.info(`视频 ${video_id} 已存在，跳过下载`);
+                }
             } catch (error) {
                 logger.error('创建下载目录失败:', error);
                 throw new Error('创建下载目录失败');
             }
 
-            await this.downloadVideo(yt, video_id, video_path);
-
-            const final_path = `file://${this.config.wsl}${process.cwd()}/temp/ytdl/${video_id}.mp4'`;
+            // 根据 WSL 配置生成最终路径
+            let final_path = '';
+            if (this.config.wsl) {
+                final_path = `${this.config.wsl}${process.cwd()}/temp/ytdl/${video_id}.mp4`;
+            } else {
+                final_path = `file://${process.cwd()}/temp/ytdl/${video_id}.mp4`;
+            }
 
             await e.reply(segment.video(final_path));
-
+            setTimeout(async () => {
+                try {
+                    await fs.promises.unlink(`./temp/ytdl/${video_id}.mp4`);
+                    logger.info(`视频文件 ${video_id} 已被清理`);
+                } catch (error) {
+                    logger.warn(`清理视频文件 ${video_id} 失败:`, error);
+                }
+            }, this.config.timeout);
         } catch (error) {
-            e.reply(`处理失败: ${error.message}`);
+            let msg = `处理失败: ${error.message}`
+            if (error.message === 'fetch failed') {
+                msg += `\n当前代理: ${this.config.proxy}\n使用 #ytdl代理[HTTP代理] 来指定代理`
+            }
+            e.reply(msg);
             logger.error('YT视频下载错误:', error);
         }
     }
