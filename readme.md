@@ -42,7 +42,7 @@ npm install
    proxychains npm install
    ```
 这会通过预先配置的 SOCKS5 代理转发 `npm` 的流量。  
-以下以 `Arch Linux WSL` 为例演示如何配置。对于其他发行版，可以询问 ChatGPT。
+以下以 `Arch Linux WSL` 为例演示如何配置。对于其他发行版，可以询问 ChatGPT。  
 0. **建立代理服务器**:  
    如果你还没有代理服务器，可以使用`xray`等工具自行搭建一个。
    > **请在合法的前提下搭建和使用。**
