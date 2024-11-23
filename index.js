@@ -24,13 +24,18 @@ export class YouTubeVideoDownload extends plugin {
                     reg: '#ytdlwsl(.*)',
                     fnc: 'set_wsl',
                     permission: "master"
+                },
+                {
+                    reg: '#ytdl超时(.*)',  // 秒
+                    fnc: 'set_fetch_timeout',
+                    permission: "master"
                 }
             ]
         });
 
         this.config = {
             path: './plugins/yunzai-yt-dl-plugin/config.json',
-            fetch_timeout: 300,
+            fetch_timeout: 300,  // 秒
             proxy: null,
             wsl: ''
         };
@@ -228,6 +233,8 @@ export class YouTubeVideoDownload extends plugin {
             format: 'mp4',
             client: 'WEB'
         });
+
+        // todo: 分别下载画面和音轨并合成高画质视频
 
         const writer = fs.createWriteStream(path);
         const reader = stream.getReader();
