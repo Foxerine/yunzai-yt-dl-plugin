@@ -1,0 +1,9 @@
+{
+    "path": "./plugins/yunzai-yt-dl-plugin/config.json",
+    "timeout": 300,
+    "proxy": "",
+    "wsl": "",
+    "banned_qqs": [
+        "123456"
+    ]
+}

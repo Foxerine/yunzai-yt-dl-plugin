@@ -247,7 +247,12 @@ export class YouTubeVideoDownload extends plugin {
 
     async _download_thumbnail_as_buffer(url) {
         try {
-            const response = await fetch(url, { dispatcher: this.proxy_dispatcher });
+            const options = {};
+            if (this.proxy_dispatcher) {
+                options.dispatcher = this.proxy_dispatcher;
+            }
+
+            const response = await fetch(url, options);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
@@ -281,9 +286,12 @@ export class YouTubeVideoDownload extends plugin {
                 await e.reply('获取视频缩略图失败，继续尝试下载');
             }
 
-            const ytdl_info = await ytdl.getInfo(video_id, {
-                agent: ytdl.createProxyAgent({ uri: this.config.proxy })
-            });
+            const options = {};
+            if (this.config.proxy) {
+                options.agent = ytdl.createProxyAgent({ uri: this.config.proxy });
+            }
+
+            const ytdl_info = await ytdl.getInfo(video_id, options);
 
             await e.reply(
                 `标题: ${video.basic_info.title}\n` +
