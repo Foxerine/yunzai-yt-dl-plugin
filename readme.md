@@ -1,8 +1,8 @@
 # yunzai-yt-dl-plugin
 
 🚀 **yunzai-yt-dl-plugin** 是一款为 Yunzai-Bot（云崽）打造的 YouTube 视频下载插件。  
-它可以自动识别消息中的 YouTube 链接，下载并发送对应的视频，并支持输出视频相关信息。
-
+它可以自动识别消息中的 YouTube 链接，下载并发送对应的视频，并支持输出视频相关信息。  
+如果你使用Nonebot而不是云崽，看这里：[Nonebot版本](https://github.com/GangFaDeShenMe/nonebot_plugin_yt_dl)
 ## 示例：
 ![img.png](img.png)  
 比较抽象的URL也可以正常识别：  
