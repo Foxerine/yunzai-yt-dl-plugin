@@ -29,6 +29,16 @@ export class YouTubeVideoDownload extends plugin {
                     reg: '#ytdl超时(.*)',  // 秒
                     fnc: 'set_fetch_timeout',
                     permission: "master"
+                },
+                {
+                    reg: '#ytdl拉黑(.*)',  // qq号
+                    fnc: 'set_banned_qqs',
+                    permission: "master"
+                },
+                {
+                    reg: '#ytdl取消拉黑(.*)',
+                    fnc: 'unban_qqs',
+                    permission: "master"
                 }
             ]
         });
@@ -37,7 +47,8 @@ export class YouTubeVideoDownload extends plugin {
             path: './plugins/yunzai-yt-dl-plugin/config.json',
             timeout: 300,  // 秒
             proxy: null,
-            wsl: ''
+            wsl: '',
+            banned_qqs: []
         };
 
         this.proxy_dispatcher = null;
@@ -47,7 +58,7 @@ export class YouTubeVideoDownload extends plugin {
     init() {
         if (!fs.existsSync(this.config.path)) {
             fs.writeFileSync(this.config.path, JSON.stringify({}, null, 4));
-            logger.info('YT视频下载: 配置文件不存在，已创建空文件');
+            logger.info('[ytdl] 配置文件不存在，已创建空文件');
             return;
         }
 
@@ -58,9 +69,78 @@ export class YouTubeVideoDownload extends plugin {
             }
             this.config.wsl = config.wsl ?? '';
             this.config.timeout = config.fetch_timeout ?? 300;
+            this.config.banned_qqs = config.banned_qqs ?? [];
         } catch (error) {
-            logger.error('YT视频下载: 读取配置失败:', error);
+            logger.error('[ytdl] YT视频下载: 读取配置失败:', error);
         }
+    }
+
+    async handle_blacklist(e, action = 'ban') {
+        const command = action === 'ban' ? '#ytdl拉黑' : '#ytdl取消拉黑';
+        const input = e.msg.match(new RegExp(`${command}\\s*(.*)`, 'i'))?.[1]?.trim();
+
+        try {
+            if (!input) {
+                // 如果没有输入参数，显示当前拉黑列表
+                const list = this.config.banned_qqs.length > 0
+                    ? this.config.banned_qqs.join(', ')
+                    : '无';
+                e.reply(`当前拉黑名单：${list}`);
+                return;
+            }
+
+            // 解析和验证QQ号
+            const qq_numbers = input.split(/[,，\s]+/)
+                .map(qq => qq.trim())
+                .filter(qq => qq.length > 0);
+
+            for (const qq of qq_numbers) {
+                if (!/^\d{5,}$/.test(qq)) {
+                    throw new Error(`无效的QQ号格式: ${qq}`);
+                }
+            }
+
+            // 更新拉黑列表
+            const current_list = new Set(this.config.banned_qqs);
+            let changed = [];
+
+            for (const qq of qq_numbers) {
+                if (action === 'ban' && !current_list.has(qq)) {
+                    current_list.add(qq);
+                    changed.push(qq);
+                } else if (action === 'unban' && current_list.has(qq)) {
+                    current_list.delete(qq);
+                    changed.push(qq);
+                }
+            }
+
+            if (changed.length === 0) {
+                const msg = action === 'ban' ? '已在拉黑名单中' : '不在拉黑名单中';
+                e.reply(`指定的QQ号${msg}`);
+                return;
+            }
+
+            // 保存更新后的列表
+            const new_list = Array.from(current_list);
+            await this.save_config({ banned_qqs: new_list });
+
+            const action_msg = action === 'ban' ? '添加到' : '从';
+            let reply = `已${action_msg}拉黑名单${action === 'ban' ? '' : '移除'}: ${changed.join(', ')}\n`;
+            reply += `当前拉黑名单：${new_list.length > 0 ? new_list.join(', ') : '无'}`;
+
+            e.reply(reply);
+        } catch (error) {
+            const err_msg = action === 'ban' ? '设置拉黑名单失败' : '取消拉黑失败';
+            e.reply(`${err_msg}: ${error.message}`);
+        }
+    }
+
+    async set_banned_qqs(e) {
+        return this.handle_blacklist(e, 'ban');
+    }
+
+    async unban_qqs(e) {
+        return this.handle_blacklist(e, 'unban');
     }
 
     async save_config(updates = {}) {
@@ -119,7 +199,7 @@ export class YouTubeVideoDownload extends plugin {
 
             return true;
         } catch (error) {
-            logger.error('YT视频下载: 设置代理失败:', error);
+            logger.error('[ytdl] YT视频下载: 设置代理失败:', error);
             return false;
         }
     }
@@ -145,7 +225,7 @@ export class YouTubeVideoDownload extends plugin {
             await this.save_config({ wsl: wsl_path });
             e.reply(wsl_path ? `已设置 WSL 路径为: ${wsl_path}` : "已清除 WSL 设置");
         } catch (error) {
-            logger.error("设置 WSL 失败:", error);
+            logger.error("[ytdl] 设置 WSL 失败:", error);
             e.reply("设置 WSL 失败，请检查日志");
         }
     }
@@ -174,7 +254,7 @@ export class YouTubeVideoDownload extends plugin {
             return Buffer.from(await response.arrayBuffer());
         } catch (error) {
             throw error.name === 'AbortError' ?
-                new Error('下载缩图超时') :
+                new Error('[ytdl] 下载缩图超时') :
                 new Error(`下载缩图失败: ${error.message}`);
         }
     }
@@ -182,14 +262,24 @@ export class YouTubeVideoDownload extends plugin {
     async parse_youtube(e) {
         if (e.user_id === e.self_id) return;
 
+        if (this.config.banned_qqs.includes(e.user_id.toString())) {
+            logger.info(`[ytdl] QQ ${e.user_id} 已忽略，原因：被拉黑`);
+            return;
+        }
+
         try {
             e.reply('正在解析YouTube视频，请稍等');
             const video_id = this.getVideoID(e.msg);
             const yt = await this.initYouTube();
             const video = await yt.getInfo(video_id);
 
-            const img = await this.download_thumbnail_as_buffer(video.basic_info.thumbnail[0].url);
-            await e.reply(segment.image(img));
+            try {
+                const img = await this.download_thumbnail_as_buffer(video.basic_info.thumbnail[0].url);
+                await e.reply(segment.image(img));
+            } catch (error) {
+                logger.error(`[ytdl] 获取视频缩略图失败: ${error.message}`);
+                await e.reply('获取视频缩略图失败，继续尝试下载');
+            }
 
             const ytdl_info = await ytdl.getInfo(video_id, {
                 agent: ytdl.createProxyAgent({ uri: this.config.proxy })
@@ -217,13 +307,13 @@ export class YouTubeVideoDownload extends plugin {
                     .catch(() => false);
 
                 if (!fileExists) {
-                    logger.info(`视频 ${video_id} 不存在，开始下载...`);
-                    await this.downloadVideo(yt, video_id, video_path);
+                    logger.info(`[ytdl] 视频 ${video_id} 不存在，开始下载...`);
+                    await this.download_video(yt, video_id, video_path);
                 } else {
-                    logger.info(`视频 ${video_id} 已存在，跳过下载`);
+                    logger.info(`[ytdl] 视频 ${video_id} 已存在，跳过下载`);
                 }
             } catch (error) {
-                logger.error('创建下载目录失败:', error);
+                logger.error('[ytdl] 创建下载目录失败:', error);
                 throw new Error('创建下载目录失败');
             }
 
@@ -239,9 +329,9 @@ export class YouTubeVideoDownload extends plugin {
             setTimeout(async () => {
                 try {
                     await fs.promises.unlink(`./temp/ytdl/${video_id}.mp4`);
-                    logger.info(`视频文件 ${video_id} 已被清理`);
+                    logger.info(`[ytdl] 视频文件 ${video_id} 已被清理`);
                 } catch (error) {
-                    logger.warn(`清理视频文件 ${video_id} 失败:`, error);
+                    logger.warn(`[ytdl] 清理视频文件 ${video_id} 失败:`, error);
                 }
             }, this.config.timeout);
         } catch (error) {
@@ -250,11 +340,11 @@ export class YouTubeVideoDownload extends plugin {
                 msg += `\n当前代理: ${this.config.proxy}\n使用 #ytdl代理[HTTP代理] 来指定代理`
             }
             e.reply(msg);
-            logger.error('YT视频下载错误:', error);
+            logger.error('[ytdl] YT视频下载错误:', error);
         }
     }
 
-    async downloadVideo(yt, video_id, path) {
+    async download_video(yt, video_id, path) {
         const stream = await yt.download(video_id, {
             type: 'video+audio',
             quality: 'best',
