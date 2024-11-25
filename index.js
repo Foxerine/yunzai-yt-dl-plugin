@@ -52,10 +52,10 @@ export class YouTubeVideoDownload extends plugin {
         };
 
         this.proxy_dispatcher = null;
-        this.init();
+        this._init();
     }
 
-    init() {
+    _init() {
         if (!fs.existsSync(this.config.path)) {
             fs.writeFileSync(this.config.path, JSON.stringify({}, null, 4));
             logger.info('[ytdl] 配置文件不存在，已创建空文件');
@@ -75,7 +75,7 @@ export class YouTubeVideoDownload extends plugin {
         }
     }
 
-    async handle_blacklist(e, action = 'ban') {
+    async _handle_blacklist(e, action = 'ban') {
         const command = action === 'ban' ? '#ytdl拉黑' : '#ytdl取消拉黑';
         const input = e.msg.match(new RegExp(`${command}\\s*(.*)`, 'i'))?.[1]?.trim();
 
@@ -122,7 +122,7 @@ export class YouTubeVideoDownload extends plugin {
 
             // 保存更新后的列表
             const new_list = Array.from(current_list);
-            await this.save_config({ banned_qqs: new_list });
+            await this._save_config({ banned_qqs: new_list });
 
             const action_msg = action === 'ban' ? '添加到' : '从';
             let reply = `已${action_msg}拉黑名单${action === 'ban' ? '' : '移除'}: ${changed.join(', ')}\n`;
@@ -136,14 +136,14 @@ export class YouTubeVideoDownload extends plugin {
     }
 
     async set_banned_qqs(e) {
-        return this.handle_blacklist(e, 'ban');
+        return this._handle_blacklist(e, 'ban');
     }
 
     async unban_qqs(e) {
-        return this.handle_blacklist(e, 'unban');
+        return this._handle_blacklist(e, 'unban');
     }
 
-    async save_config(updates = {}) {
+    async _save_config(updates = {}) {
         try {
             const config = { ...this.config, ...updates };
             await fs.promises.writeFile(this.config.path, JSON.stringify(config, null, 4));
@@ -163,7 +163,7 @@ export class YouTubeVideoDownload extends plugin {
                 throw new Error('超时时间必须是大于0的数字');
             }
 
-            await this.save_config({ timeout });
+            await this._save_config({ timeout });
 
             if (this.proxy_dispatcher) {
                 this.proxy_dispatcher = new ProxyAgent({
@@ -209,7 +209,7 @@ export class YouTubeVideoDownload extends plugin {
 
         try {
             if (this._set_proxy(proxy_url)) {
-                await this.save_config({ proxy: proxy_url });
+                await this._save_config({ proxy: proxy_url });
                 e.reply(proxy_url ? `代理已设置为: ${proxy_url}` : '已清除代理设置');
             } else {
                 e.reply('设置代理失败，请检查格式。\n格式：http://IP:端口');
@@ -222,7 +222,7 @@ export class YouTubeVideoDownload extends plugin {
     async set_wsl(e) {
         try {
             const wsl_path = e.msg.match(/^#ytdlwsl\s*(.*)/)?.[1]?.trim() ?? '';
-            await this.save_config({ wsl: wsl_path });
+            await this._save_config({ wsl: wsl_path });
             e.reply(wsl_path ? `已设置 WSL 路径为: ${wsl_path}` : "已清除 WSL 设置");
         } catch (error) {
             logger.error("[ytdl] 设置 WSL 失败:", error);
@@ -230,13 +230,13 @@ export class YouTubeVideoDownload extends plugin {
         }
     }
 
-    getVideoID(msg) {
+    _get_video_id(msg) {
         const match = msg.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/|user\/[^#]+\/u\/\d\/|v=))([a-zA-Z0-9_-]{11})/);
         if (!match?.[1]) throw new Error('无效的YouTube视频ID');
         return match[1];
     }
 
-    async initYouTube() {
+    async _init_youtube() {
         return await Innertube.create({
             fetch: (input, init) => Platform.shim.fetch(input, {
                 ...init,
@@ -245,7 +245,7 @@ export class YouTubeVideoDownload extends plugin {
         });
     }
 
-    async download_thumbnail_as_buffer(url) {
+    async _download_thumbnail_as_buffer(url) {
         try {
             const response = await fetch(url, { dispatcher: this.proxy_dispatcher });
             if (!response.ok) {
@@ -269,12 +269,12 @@ export class YouTubeVideoDownload extends plugin {
 
         try {
             e.reply('正在解析YouTube视频，请稍等');
-            const video_id = this.getVideoID(e.msg);
-            const yt = await this.initYouTube();
+            const video_id = this._get_video_id(e.msg);
+            const yt = await this._init_youtube();
             const video = await yt.getInfo(video_id);
 
             try {
-                const img = await this.download_thumbnail_as_buffer(video.basic_info.thumbnail[0].url);
+                const img = await this._download_thumbnail_as_buffer(video.basic_info.thumbnail[0].url);
                 await e.reply(segment.image(img));
             } catch (error) {
                 logger.error(`[ytdl] 获取视频缩略图失败: ${error.message}`);
@@ -308,7 +308,7 @@ export class YouTubeVideoDownload extends plugin {
 
                 if (!fileExists) {
                     logger.info(`[ytdl] 视频 ${video_id} 不存在，开始下载...`);
-                    await this.download_video(yt, video_id, video_path);
+                    await this._download_video(yt, video_id, video_path);
                 } else {
                     logger.info(`[ytdl] 视频 ${video_id} 已存在，跳过下载`);
                 }
@@ -344,7 +344,7 @@ export class YouTubeVideoDownload extends plugin {
         }
     }
 
-    async download_video(yt, video_id, path) {
+    async _download_video(yt, video_id, path) {
         const stream = await yt.download(video_id, {
             type: 'video+audio',
             quality: 'best',
