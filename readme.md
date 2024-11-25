@@ -71,7 +71,7 @@ npm install
 1. 打开资源管理器，找到如图的路径：  
 ![img_2.png](img_2.png)  
 ![img_3.png](img_3.png)  
-2. 复制路径，例如：`\\wsl.localhost\Ubuntu`
+2. 复制路径，例如：`\\wsl.localhost\Arch`
 3. 在机器人中设置：
    ```
    #ytdlwsl\\wsl.localhost\Arch
