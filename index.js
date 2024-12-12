@@ -305,15 +305,14 @@ export class YouTubeVideoDownload extends plugin {
 
             const video_path = `./temp/ytdl/${video_id}.mp4`;
 
+            // 确保下载目录存在
+            await fs.promises.mkdir('./temp/ytdl', { recursive: true });
+
+            // 检查视频文件是否存在
+            const fileExists = await fs.promises.access(video_path)
+                .then(() => true)
+                .catch(() => false);
             try {
-                // 确保下载目录存在
-                await fs.promises.mkdir('./temp/ytdl', { recursive: true });
-
-                // 检查视频文件是否存在
-                const fileExists = await fs.promises.access(video_path)
-                    .then(() => true)
-                    .catch(() => false);
-
                 if (!fileExists) {
                     logger.info(`[ytdl] 视频 ${video_id} 不存在，开始下载...`);
                     await this._download_video(yt, video_id, video_path);

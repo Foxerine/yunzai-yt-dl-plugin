@@ -9,7 +9,7 @@
   "dependencies": {
     "@distube/ytdl-core": "^4.15.1",
     "undici": "^6.21.0",
-    "youtubei.js": "^10.5.0",
+    "youtubei.js": "^12.1.0",
     "ytdl-core": "^4.11.5"
   },
   "type": "module"
