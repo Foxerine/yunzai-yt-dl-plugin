@@ -7,9 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@distube/ytdl-core": "^4.15.1",
+    "@distube/ytdl-core": "^4.16.9",
     "undici": "^6.21.0",
-    "youtubei.js": "^12.1.0",
+    "youtubei.js": "^13.4.0",
     "ytdl-core": "^4.11.5"
   },
   "type": "module"
